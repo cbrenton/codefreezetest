@@ -1,21 +1,23 @@
 name: Check Code Freeze
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
   issue_comment:
     types: [created, edited]
 
 jobs:
   check-freeze:
-    # Skip comment events that aren't on PRs
-    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+    # Only run on PRs and PR comments
+    if: |
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'issue_comment' && contains(github.event.issue.html_url, '/pull/'))
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
       contents: read
       statuses: write
-
+    
     steps:
       - uses: actions/checkout@v4
 
@@ -34,7 +36,7 @@ jobs:
           fi
 
       - name: Add freeze override comment
-        if: steps.check-freeze.outputs.is_frozen == 'true' && github.event_name == 'pull_request'
+        if: steps.check-freeze.outputs.is_frozen == 'true' && github.event_name == 'pull_request_target'
         uses: actions/github-script@v6
         with:
           script: |
@@ -43,12 +45,12 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
-
+            
             // Check if we already added a freeze comment
             const hasExistingComment = comments.some(comment => 
               comment.body.includes('⚠️ **Code Freeze Active** ⚠️')
             );
-
+            
             if (!hasExistingComment) {
               const comment = [
                 '⚠️ **Code Freeze Active** ⚠️',
@@ -56,7 +58,8 @@ jobs:
                 'This PR was opened during an active code freeze. To proceed:',
                 '',
                 '1. [ ] I acknowledge there is an active code freeze',
-                '1. [ ] I have approval to override the code freeze',
+                '2. [ ] I have approval to override the code freeze',
+                '3. Please provide reason for override:',
                 '',
                 'Once completed, request approval from the appropriate team member.'
               ].join('\n');
@@ -69,92 +72,80 @@ jobs:
               });
             }
 
-      - name: Check for override approval
-        if: steps.check-freeze.outputs.is_frozen == 'true'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            // Helper to get PR details regardless of trigger type
-            async function getPRDetails() {
-              if (github.event_name === 'pull_request') {
-                return {
-                  number: context.payload.pull_request.number,
-                  sha: context.payload.pull_request.head.sha
-                };
-              } else {
-                // For comments, first verify it's a PR comment
-                if (!context.payload.issue.pull_request) {
-                  throw new Error('Comment is not on a PR');
-                }
-                const prNumber = context.payload.issue.number;
-                const { data: pr } = await github.rest.pulls.get({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: prNumber
-                });
-                return {
-                  number: prNumber,
-                  sha: pr.head.sha
-                };
-              }
-            }
-
-            // Get PR details
-            const pr = await getPRDetails();
-
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr.number,
-            });
-
-            // Look for a comment with all checkboxes checked
-            const hasOverrideApproval = comments.some(comment => {
-              const checkboxPattern = /- \[x\]/gi;
-              const matches = (comment.body.match(checkboxPattern) || []).length;
-              return matches >= 2; // At least the first two checkboxes must be checked
-            });
-
-            // Create status check
-            const status = {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: pr.sha,
-              context: 'Code Freeze Check',
-              state: hasOverrideApproval ? 'success' : 'pending',
-              description: hasOverrideApproval 
-                ? 'Override approved'
-                : 'Requires code freeze override approval'
-            };
-
-            await github.rest.repos.createCommitStatus(status);
-
-      - name: Set success status when no freeze
-        if: steps.check-freeze.outputs.is_frozen != 'true'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            // Helper to get PR SHA regardless of trigger type
-            async function getPRSha() {
-              if (github.event_name === 'pull_request') {
-                return context.payload.pull_request.head.sha;
-              } else {
-                const { data: pr } = await github.rest.pulls.get({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: context.payload.issue.number
-                });
-                return pr.head.sha;
-              }
-            }
-
-            const sha = await getPRSha();
-
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: sha,
-              context: 'Code Freeze Check',
-              state: 'success',
-              description: 'No active code freeze'
-            });
+#       - name: Check for override approval
+#         if: steps.check-freeze.outputs.is_frozen == 'true'
+#         uses: actions/github-script@v6
+#         with:
+#           script: |
+#             // Get PR number based on event type
+#             const prNumber = github.event_name === 'pull_request_target' 
+#               ? context.issue.number 
+#               : github.event.issue.number;
+#             
+#             const { data: comments } = await github.rest.issues.listComments({
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               issue_number: prNumber,
+#             });
+#             
+#             // Look for a comment with all checkboxes checked
+#             const hasOverrideApproval = comments.some(comment => {
+#               const checkboxPattern = /- \[x\]/gi;
+#               const matches = (comment.body.match(checkboxPattern) || []).length;
+#               return matches >= 2; // At least the first two checkboxes must be checked
+#             });
+# 
+#             // Get SHA based on event type
+#             let sha;
+#             if (github.event_name === 'pull_request_target') {
+#               sha = context.payload.pull_request.head.sha;
+#             } else {
+#               // For comments, we need to fetch the PR details
+#               const { data: pr } = await github.rest.pulls.get({
+#                 owner: context.repo.owner,
+#                 repo: context.repo.repo,
+#                 pull_number: prNumber
+#               });
+#               sha = pr.head.sha;
+#             }
+# 
+#             // Create status check
+#             const status = {
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               sha: sha,
+#               context: 'Code Freeze Check',
+#               state: hasOverrideApproval ? 'success' : 'pending',
+#               description: hasOverrideApproval 
+#                 ? 'Override approved'
+#                 : 'Requires code freeze override approval'
+#             };
+# 
+#             await github.rest.repos.createCommitStatus(status);
+# 
+#       - name: Set success status when no freeze
+#         if: steps.check-freeze.outputs.is_frozen != 'true'
+#         uses: actions/github-script@v6
+#         with:
+#           script: |
+#             // Get SHA based on event type
+#             let sha;
+#             if (github.event_name === 'pull_request_target') {
+#               sha = context.payload.pull_request.head.sha;
+#             } else {
+#               const { data: pr } = await github.rest.pulls.get({
+#                 owner: context.repo.owner,
+#                 repo: context.repo.repo,
+#                 pull_number: github.event.issue.number
+#               });
+#               sha = pr.head.sha;
+#             }
+# 
+#             await github.rest.repos.createCommitStatus({
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               sha: sha,
+#               context: 'Code Freeze Check',
+#               state: 'success',
+#               description: 'No active code freeze'
+#             });
