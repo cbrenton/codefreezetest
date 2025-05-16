@@ -1,0 +1,62 @@
+name: Check Code Freeze
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check-freeze:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check freeze status
+        id: check-freeze
+        run: |
+          if [ -f .github/code-freeze/state.json ]; then
+            FREEZE_ACTIVE=$(jq -r '.active' .github/code-freeze/state.json)
+            if [ "$FREEZE_ACTIVE" = "true" ]; then
+              echo "is_frozen=true" >> $GITHUB_OUTPUT
+            else
+              echo "is_frozen=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "is_frozen=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Add freeze override comment
+        if: steps.check-freeze.outputs.is_frozen == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            // Check if we already added a freeze comment
+            const hasExistingComment = comments.some(comment => 
+              comment.body.includes('⚠️ **Code Freeze Active** ⚠️')
+            );
+
+            if (!hasExistingComment) {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `⚠️ **Code Freeze Active** ⚠️
+
+                This PR was opened during an active code freeze. To proceed:
+
+                1. [ ] I acknowledge there is an active code freeze
+                2. [ ] I have approval to override the code freeze
+                3. Please provide reason for override:
+
+                Once completed, request approval from the appropriate team member.`
+              });
+            }
