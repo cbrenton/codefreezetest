@@ -1,0 +1,69 @@
+name: Manage Code Freeze
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - start-freeze
+          - end-freeze
+      reason:
+        description: 'Reason for code freeze'
+        required: true
+        type: string
+      end_date:
+        description: 'Expected end date (YYYY-MM-DD)'
+        required: false
+        type: string
+
+jobs:
+  manage-freeze:
+    runs-on: ubuntu-latest
+    environment: code-freeze
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Code Freeze
+        if: github.event.inputs.action == 'start-freeze'
+        run: |
+          echo "Creating code freeze state file..."
+          mkdir -p .github/code-freeze
+          cat > .github/code-freeze/state.json << EOF
+          {
+            "active": true,
+            "reason": "${{ github.event.inputs.reason }}",
+            "start_date": "$(date -u +'%Y-%m-%d')",
+            "end_date": "${{ github.event.inputs.end_date }}",
+            "initiated_by": "${{ github.actor }}"
+          }
+          EOF
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add .github/code-freeze/state.json
+          git commit -m "🥶 Start code freeze: ${{ github.event.inputs.reason }}"
+          git push
+
+      - name: End Code Freeze
+        if: github.event.inputs.action == 'end-freeze'
+        run: |
+          echo "Updating code freeze state file..."
+          mkdir -p .github/code-freeze
+          cat > .github/code-freeze/state.json << EOF
+          {
+            "active": false,
+            "last_freeze": {
+              "reason": "${{ github.event.inputs.reason }}",
+              "end_date": "$(date -u +'%Y-%m-%d')",
+              "ended_by": "${{ github.actor }}"
+            }
+          }
+          EOF
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add .github/code-freeze/state.json
+          git commit -m "🌡️ End code freeze"
+          git push
