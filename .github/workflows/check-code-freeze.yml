@@ -74,15 +74,38 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            // Get PR number based on event type
-            const prNumber = github.event_name === 'pull_request' 
-              ? context.issue.number 
-              : github.event.issue.number;
+            // Helper to get PR details regardless of trigger type
+            async function getPRDetails() {
+              if (github.event_name === 'pull_request') {
+                return {
+                  number: context.payload.pull_request.number,
+                  sha: context.payload.pull_request.head.sha
+                };
+              } else {
+                // For comments, first verify it's a PR comment
+                if (!context.payload.issue.pull_request) {
+                  throw new Error('Comment is not on a PR');
+                }
+                const prNumber = context.payload.issue.number;
+                const { data: pr } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber
+                });
+                return {
+                  number: prNumber,
+                  sha: pr.head.sha
+                };
+              }
+            }
+
+            // Get PR details
+            const pr = await getPRDetails();
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: prNumber,
+              issue_number: pr.number,
             });
 
             // Look for a comment with all checkboxes checked
@@ -92,22 +115,11 @@ jobs:
               return matches >= 2; // At least the first two checkboxes must be checked
             });
 
-            // For comment events, we need to get the PR's latest SHA
-            let sha = context.sha;
-            if (github.event_name === 'issue_comment') {
-              const { data: pr } = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: prNumber
-              });
-              sha = pr.head.sha;
-            }
-
             // Create status check
             const status = {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha: sha,
+              sha: pr.sha,
               context: 'Code Freeze Check',
               state: hasOverrideApproval ? 'success' : 'pending',
               description: hasOverrideApproval 
@@ -122,16 +134,21 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            // Get SHA based on event type
-            let sha = context.sha;
-            if (github.event_name === 'issue_comment') {
-              const { data: pr } = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: github.event.issue.number
-              });
-              sha = pr.head.sha;
+            // Helper to get PR SHA regardless of trigger type
+            async function getPRSha() {
+              if (github.event_name === 'pull_request') {
+                return context.payload.pull_request.head.sha;
+              } else {
+                const { data: pr } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.payload.issue.number
+                });
+                return pr.head.sha;
+              }
             }
+
+            const sha = await getPRSha();
 
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
