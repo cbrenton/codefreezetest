@@ -10,7 +10,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-      statuses: write  # Add permission to create status checks
+      statuses: write
 
     steps:
       - uses: actions/checkout@v4
@@ -46,19 +46,23 @@ jobs:
             );
 
             if (!hasExistingComment) {
+              const comment = [
+                '⚠️ **Code Freeze Active** ⚠️',
+                '',
+                'This PR was opened during an active code freeze. To proceed:',
+                '',
+                '1. [ ] I acknowledge there is an active code freeze',
+                '2. [ ] I have approval to override the code freeze',
+                '3. Please provide reason for override:',
+                '',
+                'Once completed, request approval from the appropriate team member.'
+              ].join('\n');
+
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: `⚠️ **Code Freeze Active** ⚠️
-
-                This PR was opened during an active code freeze. To proceed:
-
-                1. [ ] I acknowledge there is an active code freeze
-                2. [ ] I have approval to override the code freeze
-                3. Please provide reason for override:
-
-                Once completed, request approval from the appropriate team member.`
+                body: comment
               });
             }
 
