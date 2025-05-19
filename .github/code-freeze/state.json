@@ -1,7 +1,8 @@
 {
-  "active": true,
-  "reason": "foo",
-  "start_date": "2025-05-16",
-  "end_date": "2025-09-11",
-  "initiated_by": "cbrenton"
+  "active": false,
+  "last_freeze": {
+    "reason": "",
+    "end_date": "2025-05-19",
+    "ended_by": "cbrenton"
+  }
 }
