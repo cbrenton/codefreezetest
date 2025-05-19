@@ -77,8 +77,8 @@ jobs:
                   '',
                   'This PR was opened during an active code freeze. To proceed:',
                   '',
-                  '1. [ ] I acknowledge there is an active code freeze',
-                  '2. [ ] I have approval to override the code freeze',
+                  '- [ ] I acknowledge there is an active code freeze',
+                  '- [ ] I have approval to override the code freeze',
                   '',
                   'Once completed, request approval from the appropriate team member.'
                 ].join('\n')
@@ -99,9 +99,16 @@ jobs:
             // Look for a comment with all checkboxes checked
             const hasOverrideApproval = comments.some(comment => {
               console.log('Checking comment:', comment.body);
+              
+              // First check if this is a code freeze override form
+              if (!comment.body.toLowerCase().includes('**Code Freeze Active**')) {
+                console.log('Skipping comment - not a code freeze override form');
+                return false;
+              }
+              
               const checkboxPattern = /- \[x\]/gi;
               const matches = (comment.body.match(checkboxPattern) || []).length;
-              console.log('Found', matches, 'checked checkboxes in comment');
+              console.log('Found', matches, 'checked checkboxes in code freeze override form');
               return matches >= 2; // At least the first two checkboxes must be checked
             });
 
