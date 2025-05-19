@@ -46,8 +46,8 @@ jobs:
       - name: Check freeze status
         id: check-freeze
         run: |
-          if [ -f .github/code-freeze/state.json ]; then
-            FREEZE_ACTIVE=$(jq -r '.active' .github/code-freeze/state.json)
+          if [ -f code_freeze.yaml ]; then
+            FREEZE_ACTIVE=$(yq eval '.active' code_freeze.yaml)
             if [ "$FREEZE_ACTIVE" = "true" ]; then
               echo "is_frozen=true" >> $GITHUB_OUTPUT
             else
