@@ -6,17 +6,6 @@ on:
   # pull_request:
     # types: [opened, synchronize, reopened]
 
-# jobs:
-#   check-freeze:
-#     # This job only runs for pull request comments
-#     name: PR comment
-#     if: ${{ github.event.issue.pull_request }}
-#     runs-on: ubuntu-latest
-#     steps:
-#       - run: |
-#           echo A comment on PR $NUMBER woohoo
-#         env:
-#           NUMBER: ${{ github.event.issue.number }}
 jobs:
   check-freeze:
     runs-on: ubuntu-latest
@@ -32,12 +21,20 @@ jobs:
         id: pr
         uses: actions/github-script@v6
         with:
+          debug: true
           script: |
+            console.log('Event name:', context.eventName);
+            console.log('Event payload:', JSON.stringify(context.payload, null, 2));
+            
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.payload.issue.number
             });
+            
+            console.log('PR data:', JSON.stringify(pr, null, 2));
+            console.log('Setting PR_SHA to:', pr.head.sha);
+            
             core.exportVariable('PR_SHA', pr.head.sha);
 
       - name: Check freeze status
@@ -117,19 +114,24 @@ jobs:
                 ? 'Override approved'
                 : 'Requires code freeze override approval'
             };
-
+            
+            console.log('Creating status check with:', JSON.stringify(status, null, 2));
             await github.rest.repos.createCommitStatus(status);
 
       - name: Set success status when no freeze
         if: steps.check-freeze.outputs.is_frozen != 'true'
         uses: actions/github-script@v6
         with:
+          debug: true
           script: |
-            await github.rest.repos.createCommitStatus({
+            const status = {
               owner: context.repo.owner,
               repo: context.repo.repo,
               sha: process.env.PR_SHA,
               context: 'Code Freeze Check',
               state: 'success',
               description: 'No active code freeze'
-            });
+            };
+            
+            console.log('Creating success status with:', JSON.stringify(status, null, 2));
+            await github.rest.repos.createCommitStatus(status);
