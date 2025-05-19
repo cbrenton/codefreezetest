@@ -6,117 +6,116 @@ on:
   # pull_request:
     # types: [opened, synchronize, reopened]
 
-jobs:
-  check-freeze:
-    # This job only runs for pull request comments
-    name: PR comment
-    if: ${{ github.event.issue.pull_request }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          echo A comment on PR $NUMBER
-        env:
-          NUMBER: ${{ github.event.issue.number }}
 # jobs:
 #   check-freeze:
+#     # This job only runs for pull request comments
+#     name: PR comment
+#     if: ${{ github.event.issue.pull_request }}
 #     runs-on: ubuntu-latest
-#     permissions:
-#       pull-requests: write
-#       contents: read
-#       statuses: write  # Add permission to create status checks
-# 
 #     steps:
-#       - uses: actions/checkout@v4
-# 
-#       - name: Check freeze status
-#         id: check-freeze
-#         run: |
-#           if [ -f .github/code-freeze/state.json ]; then
-#             FREEZE_ACTIVE=$(jq -r '.active' .github/code-freeze/state.json)
-#             if [ "$FREEZE_ACTIVE" = "true" ]; then
-#               echo "is_frozen=true" >> $GITHUB_OUTPUT
-#             else
-#               echo "is_frozen=false" >> $GITHUB_OUTPUT
-#             fi
-#           else
-#             echo "is_frozen=false" >> $GITHUB_OUTPUT
-#           fi
-# 
-#       - name: Add freeze override comment
-#         if: steps.check-freeze.outputs.is_frozen == 'true'
-#         uses: actions/github-script@v6
-#         with:
-#           script: |
-#             const { data: comments } = await github.rest.issues.listComments({
-#               owner: context.repo.owner,
-#               repo: context.repo.repo,
-#               issue_number: context.issue.number,
-#             });
-# 
-#             // Check if we already added a freeze comment
-#             const hasExistingComment = comments.some(comment => 
-#               comment.body.includes('⚠️ **Code Freeze Active** ⚠️')
-#             );
-# 
-#             if (!hasExistingComment) {
-#               await github.rest.issues.createComment({
-#                 issue_number: context.issue.number,
-#                 owner: context.repo.owner,
-#                 repo: context.repo.repo,
-#                 body: `⚠️ **Code Freeze Active** ⚠️
-# 
-#                 This PR was opened during an active code freeze. To proceed:
-# 
-#                 1. [ ] I acknowledge there is an active code freeze
-#                 2. [ ] I have approval to override the code freeze
-#                 3. Please provide reason for override:
-# 
-#                 Once completed, request approval from the appropriate team member.`
-#               });
-#             }
-# 
-#       - name: Check for override approval
-#         if: steps.check-freeze.outputs.is_frozen == 'true'
-#         uses: actions/github-script@v6
-#         with:
-#           script: |
-#             const { data: comments } = await github.rest.issues.listComments({
-#               owner: context.repo.owner,
-#               repo: context.repo.repo,
-#               issue_number: context.issue.number,
-#             });
-# 
-#             // Look for a comment with all checkboxes checked
-#             const hasOverrideApproval = comments.some(comment => {
-#               const checkboxPattern = /- \[x\]/gi;
-#               const matches = (comment.body.match(checkboxPattern) || []).length;
-#               return matches >= 2; // At least the first two checkboxes must be checked
-#             });
-# 
-#             // Create status check
-#             const status = {
-#               owner: context.repo.owner,
-#               repo: context.repo.repo,
-#               sha: context.sha,
-#               context: 'Code Freeze Check',
-#               state: hasOverrideApproval ? 'success' : 'pending',
-#               description: hasOverrideApproval 
-#                 ? 'Override approved'
-#                 : 'Requires code freeze override approval'
-#             };
-# 
-#             await github.rest.repos.createCommitStatus(status);
-# 
-#       - name: Set success status when no freeze
-#         if: steps.check-freeze.outputs.is_frozen != 'true'
-#         uses: actions/github-script@v6
-#         with:
-#           script: |
-#             await github.rest.repos.createCommitStatus({
-#               owner: context.repo.owner,
-#               repo: context.repo.repo,
-#               sha: context.sha,
-#               context: 'Code Freeze Check',
-#               state: 'success',
-#               description: 'No active code freeze'
-#             });
+#       - run: |
+#           echo A comment on PR $NUMBER woohoo
+#         env:
+#           NUMBER: ${{ github.event.issue.number }}
+jobs:
+  check-freeze:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+      statuses: write  # Add permission to create status checks
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check freeze status
+        id: check-freeze
+        run: |
+          if [ -f .github/code-freeze/state.json ]; then
+            FREEZE_ACTIVE=$(jq -r '.active' .github/code-freeze/state.json)
+            if [ "$FREEZE_ACTIVE" = "true" ]; then
+              echo "is_frozen=true" >> $GITHUB_OUTPUT
+            else
+              echo "is_frozen=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "is_frozen=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Add freeze override comment
+        if: steps.check-freeze.outputs.is_frozen == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            // Check if we already added a freeze comment
+            const hasExistingComment = comments.some(comment => 
+              comment.body.includes('⚠️ **Code Freeze Active** ⚠️')
+            );
+
+            if (!hasExistingComment) {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `⚠️ **Code Freeze Active** ⚠️
+
+This PR was opened during an active code freeze. To proceed:
+
+1. [ ] I acknowledge there is an active code freeze
+2. [ ] I have approval to override the code freeze
+
+Once completed, request approval from the appropriate team member.`
+              });
+            }
+
+      - name: Check for override approval
+        if: steps.check-freeze.outputs.is_frozen == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            // Look for a comment with all checkboxes checked
+            const hasOverrideApproval = comments.some(comment => {
+              const checkboxPattern = /- \[x\]/gi;
+              const matches = (comment.body.match(checkboxPattern) || []).length;
+              return matches >= 2; // At least the first two checkboxes must be checked
+            });
+
+            // Create status check
+            const status = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              context: 'Code Freeze Check',
+              state: hasOverrideApproval ? 'success' : 'pending',
+              description: hasOverrideApproval 
+                ? 'Override approved'
+                : 'Requires code freeze override approval'
+            };
+
+            await github.rest.repos.createCommitStatus(status);
+
+      - name: Set success status when no freeze
+        if: steps.check-freeze.outputs.is_frozen != 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              context: 'Code Freeze Check',
+              state: 'success',
+              description: 'No active code freeze'
+            });
