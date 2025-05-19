@@ -3,8 +3,8 @@ name: Check Code Freeze
 on:
   issue_comment:
     types: [created, edited, deleted]
-  # pull_request:
-    # types: [opened, synchronize, reopened]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   check-freeze:
@@ -26,16 +26,22 @@ jobs:
             console.log('Event name:', context.eventName);
             console.log('Event payload:', JSON.stringify(context.payload, null, 2));
             
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.issue.number
-            });
-            
-            console.log('PR data:', JSON.stringify(pr, null, 2));
-            console.log('Setting PR_SHA to:', pr.head.sha);
-            
-            core.exportVariable('PR_SHA', pr.head.sha);
+            let prNumber;
+            if (context.eventName === 'pull_request') {
+              console.log('Getting SHA from pull_request event');
+              core.exportVariable('PR_SHA', context.payload.pull_request.head.sha);
+              prNumber = context.payload.pull_request.number;
+            } else {
+              console.log('Getting SHA from issue_comment event');
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.issue.number
+              });
+              core.exportVariable('PR_SHA', pr.head.sha);
+              prNumber = context.payload.issue.number;
+            }
+            core.exportVariable('PR_NUMBER', prNumber);
 
       - name: Check freeze status
         id: check-freeze
@@ -59,7 +65,7 @@ jobs:
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: process.env.PR_NUMBER,
             });
 
             // Check if we already added a freeze comment
@@ -69,7 +75,7 @@ jobs:
 
             if (!hasExistingComment) {
               await github.rest.issues.createComment({
-                issue_number: context.issue.number,
+                issue_number: process.env.PR_NUMBER,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 body: [
@@ -93,7 +99,7 @@ jobs:
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: process.env.PR_NUMBER,
             });
 
             // Look for a comment with all checkboxes checked
