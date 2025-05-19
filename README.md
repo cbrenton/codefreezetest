@@ -1,3 +1,3 @@
 # codefreezetest
 
-foo
+foobar
