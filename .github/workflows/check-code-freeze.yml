@@ -63,15 +63,16 @@ jobs:
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: |
-                  ⚠️ **Code Freeze Active** ⚠️
-
-                  This PR was opened during an active code freeze. To proceed:
-
-                  1. [ ] I acknowledge there is an active code freeze
-                  2. [ ] I have approval to override the code freeze
-
-                  Once completed, request approval from the appropriate team member.
+                body: [
+                  '⚠️ **Code Freeze Active** ⚠️',
+                  '',
+                  'This PR was opened during an active code freeze. To proceed:',
+                  '',
+                  '1. [ ] I acknowledge there is an active code freeze',
+                  '2. [ ] I have approval to override the code freeze',
+                  '',
+                  'Once completed, request approval from the appropriate team member.'
+                ].join('\n')
               });
             }
 
