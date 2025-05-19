@@ -86,11 +86,8 @@ jobs:
                   '⚠️ **Code Freeze Active** ⚠️',
                   '',
                   'This PR was opened during an active code freeze. To proceed:',
-                  '',
                   '- [ ] I acknowledge there is an active code freeze',
-                  '',
-                  '- [ ] EITHER I have approval to override the code freeze',
-                  '- [ ] OR the code freeze has ended',
+                  '- [ ] EITHER I have approval to override the code freeze OR the code freeze has ended',
                   '',
                   'Once completed, request approval from the appropriate team member.'
                 ].join('\n')
