@@ -46,8 +46,12 @@ jobs:
       - name: Check freeze status
         id: check-freeze
         run: |
-          if [ -f code_freeze.yaml ]; then
-            FREEZE_ACTIVE=$(yq eval '.active' code_freeze.yaml)
+          # Fetch the main branch
+          git fetch origin main
+          
+          # Check if code_freeze.yaml exists in main and read its content
+          if git show origin/main:code_freeze.yaml > /dev/null 2>&1; then
+            FREEZE_ACTIVE=$(git show origin/main:code_freeze.yaml | yq eval '.active')
             if [ "$FREEZE_ACTIVE" = "true" ]; then
               echo "is_frozen=true" >> $GITHUB_OUTPUT
             else
