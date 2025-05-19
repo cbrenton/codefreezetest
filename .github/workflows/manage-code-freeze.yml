@@ -43,39 +43,28 @@ jobs:
         if: github.event.inputs.action == 'start-freeze'
         run: |
           echo "Creating code freeze state file..."
-          mkdir -p .github/code-freeze
-          cat > .github/code-freeze/state.json << EOF
-          {
-            "active": true,
-            "reason": "${{ github.event.inputs.reason }}",
-            "start_date": "$(date -u +'%Y-%m-%d')",
-            "end_date": "${{ github.event.inputs.end_date }}",
-            "initiated_by": "${{ github.actor }}"
-          }
+          cat > code_freeze.yaml << EOF
+          active: true
+          reason: "${{ github.event.inputs.reason }}"
+          end_date: "${{ github.event.inputs.end_date }}"
           EOF
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
-          git add .github/code-freeze/state.json
+          git add code_freeze.yaml
           git commit -m "🥶 Start code freeze: ${{ github.event.inputs.reason }}"
 
       - name: End Code Freeze
         if: github.event.inputs.action == 'end-freeze'
         run: |
           echo "Updating code freeze state file..."
-          mkdir -p .github/code-freeze
-          cat > .github/code-freeze/state.json << EOF
-          {
-            "active": false,
-            "last_freeze": {
-              "reason": "${{ github.event.inputs.reason }}",
-              "end_date": "$(date -u +'%Y-%m-%d')",
-              "ended_by": "${{ github.actor }}"
-            }
-          }
+          cat > code_freeze.yaml << EOF
+          active: false
+          reason: nil
+          end_date: nil
           EOF
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
-          git add .github/code-freeze/state.json
+          git add code_freeze.yaml
           git commit -m "🌡️ End code freeze"
 
       - name: Push changes
