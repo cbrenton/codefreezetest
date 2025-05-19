@@ -98,10 +98,14 @@ jobs:
 
             // Look for a comment with all checkboxes checked
             const hasOverrideApproval = comments.some(comment => {
+              console.log('Checking comment:', comment.body);
               const checkboxPattern = /- \[x\]/gi;
               const matches = (comment.body.match(checkboxPattern) || []).length;
+              console.log('Found', matches, 'checked checkboxes in comment');
               return matches >= 2; // At least the first two checkboxes must be checked
             });
+
+            console.log('Override approval status:', hasOverrideApproval);
 
             // Create status check
             const status = {
