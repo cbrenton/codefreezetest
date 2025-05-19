@@ -26,17 +26,8 @@ jobs:
             
             let prNumber;
             if (context.eventName === 'pull_request') {
-              # console.log('Getting SHA from pull_request event');
-              # core.exportVariable('PR_SHA', context.payload.pull_request.head.sha);
               prNumber = context.payload.pull_request.number;
             } else {
-              # console.log('Getting SHA from issue_comment event');
-              # const { data: pr } = await github.rest.pulls.get({
-                # owner: context.repo.owner,
-                # repo: context.repo.repo,
-                # pull_number: context.payload.issue.number
-              # });
-              # core.exportVariable('PR_SHA', pr.head.sha);
               prNumber = context.payload.issue.number;
             }
             core.exportVariable('PR_NUMBER', prNumber);
