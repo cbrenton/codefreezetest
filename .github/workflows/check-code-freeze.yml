@@ -101,7 +101,7 @@ jobs:
               console.log('Checking comment:', comment.body);
               
               // First check if this is a code freeze override form
-              if (!comment.body.toLowerCase().includes('**Code Freeze Active**')) {
+              if (!comment.body.includes('**Code Freeze Active**')) {
                 console.log('Skipping comment - not a code freeze override form');
                 return false;
               }
