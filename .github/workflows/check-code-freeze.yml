@@ -67,8 +67,8 @@ jobs:
 
 This PR was opened during an active code freeze. To proceed:
 
-1. \[ ] I acknowledge there is an active code freeze
-2. \[ ] I have approval to override the code freeze
+1. [ ] I acknowledge there is an active code freeze
+2. [ ] I have approval to override the code freeze
 
 Once completed, request approval from the appropriate team member.`
               });
