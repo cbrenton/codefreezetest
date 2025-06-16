@@ -1,8 +1,6 @@
 name: Check Code Freeze
 
 on:
-  issue_comment:
-    types: [created, edited, deleted]
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -12,12 +10,11 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-      statuses: write  # Add permission to create status checks
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get PR SHA
+      - name: Get PR number
         id: pr
         uses: actions/github-script@v6
         with:
@@ -25,20 +22,11 @@ jobs:
           script: |
             console.log('Event name:', context.eventName);
             console.log('Event payload:', JSON.stringify(context.payload, null, 2));
-            
+
             let prNumber;
             if (context.eventName === 'pull_request') {
-              console.log('Getting SHA from pull_request event');
-              core.exportVariable('PR_SHA', context.payload.pull_request.head.sha);
               prNumber = context.payload.pull_request.number;
             } else {
-              console.log('Getting SHA from issue_comment event');
-              const { data: pr } = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.payload.issue.number
-              });
-              core.exportVariable('PR_SHA', pr.head.sha);
               prNumber = context.payload.issue.number;
             }
             core.exportVariable('PR_NUMBER', prNumber);
@@ -48,14 +36,13 @@ jobs:
         run: |
           # Fetch the main branch
           git fetch origin main
-          
+
           # Check if code_freeze.yaml exists in main and read its content
           if git show origin/main:code_freeze.yaml > /dev/null 2>&1; then
-            FREEZE_ACTIVE=$(git show origin/main:code_freeze.yaml | yq eval '.active')
-            if [ "$FREEZE_ACTIVE" = "true" ]; then
-              echo "is_frozen=true" >> $GITHUB_OUTPUT
-            else
+            if ./script/is_code_freeze_inactive.rb; then
               echo "is_frozen=false" >> $GITHUB_OUTPUT
+            else
+              echo "is_frozen=true" >> $GITHUB_OUTPUT
             fi
           else
             echo "is_frozen=false" >> $GITHUB_OUTPUT
@@ -73,7 +60,7 @@ jobs:
             });
 
             // Check if we already added a freeze comment
-            const hasExistingComment = comments.some(comment => 
+            const hasExistingComment = comments.some(comment =>
               comment.body.includes('⚠️ **Code Freeze Active** ⚠️')
             );
 
@@ -88,71 +75,9 @@ jobs:
                   'This PR was opened during an active code freeze. To proceed:',
                   '',
                   '- [ ] I acknowledge there is an active code freeze',
-                  '- [ ] I have approval to override the code freeze',
+                  '- [ ] **EITHER** I have approval to override the code freeze **OR** the code freeze has ended',
                   '',
                   'Once completed, request approval from the appropriate team member.'
                 ].join('\n')
               });
             }
-
-      - name: Check for override approval when freeze is active
-        if: steps.check-freeze.outputs.is_frozen == 'true'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: process.env.PR_NUMBER,
-            });
-
-            // Look for a comment with all checkboxes checked
-            const hasOverrideApproval = comments.some(comment => {
-              console.log('Checking comment:', comment.body);
-              
-              // First check if this is a code freeze override form
-              if (!comment.body.includes('**Code Freeze Active**')) {
-                console.log('Skipping comment - not a code freeze override form');
-                return false;
-              }
-              
-              const checkboxPattern = /- \[x\]/gi;
-              const matches = (comment.body.match(checkboxPattern) || []).length;
-              console.log('Found', matches, 'checked checkboxes in code freeze override form');
-              return matches >= 2; // At least the first two checkboxes must be checked
-            });
-
-            console.log('Override approval status:', hasOverrideApproval);
-
-            // Create status check
-            const status = {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: process.env.PR_SHA,
-              context: 'Code Freeze Check',
-              state: hasOverrideApproval ? 'success' : 'pending',
-              description: hasOverrideApproval 
-                ? 'Override approved'
-                : 'Requires code freeze override approval'
-            };
-            
-            console.log('Creating status check with:', JSON.stringify(status, null, 2));
-            await github.rest.repos.createCommitStatus(status);
-
-      - name: Set success status when no freeze
-        if: steps.check-freeze.outputs.is_frozen != 'true'
-        uses: actions/github-script@v6
-        with:
-          debug: true
-          script: |
-            const status = {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: process.env.PR_SHA,
-              context: 'Code Freeze Check',
-              state: 'success',
-              description: 'No active code freeze'
-            };
-            
-            console.log('Creating success status with:', JSON.stringify(status, null, 2));
-            await github.rest.repos.createCommitStatus(status);

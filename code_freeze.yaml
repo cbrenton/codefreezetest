@@ -1,3 +1,13 @@
-active: true
-reason: nil
-end_date: nil
+# Code freezes should be appended to this file, which can be cleaned out periodically if needed.
+#
+# Multiple upcoming or active freezes are possible. Each code freeze should contain fields for
+# reason, start_time, and end_time.
+# Code freeze start and end times are in Pacific time and follow the format "%Y-%m-%dT%H:%M".
+#
+# This file is validated in the pre-commit hook via `script/validate_code_freeze.rb`.
+#
+# Sample code freeze:
+#
+# - reason: example
+#   start_time: 1995-11-06T00:00
+#   end_time: 1999-08-08T00:00
