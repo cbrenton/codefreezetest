@@ -48,10 +48,22 @@ jobs:
 
           # Check if code_freeze.yaml exists in main and read its content
           if git show origin/main:code_freeze.yaml > /dev/null 2>&1; then
+            # Run the script and capture output
             if ./script/is_code_freeze_inactive.rb; then
               echo "is_frozen=false" >> $GITHUB_OUTPUT
             else
               echo "is_frozen=true" >> $GITHUB_OUTPUT
+              
+              REASON=$(yq e '.[].reason' code_freeze.yaml)
+              END_TIME=$(yq e '.[].end_time' code_freeze.yaml | xargs -I{} date -d '{}' '+%B %-d, %Y %I:%M %p')
+              
+              if [ ! -z "$REASON" ]; then
+                echo "freeze_reason=$REASON" >> $GITHUB_OUTPUT
+              fi
+              
+              if [ ! -z "$END_TIME" ]; then
+                echo "freeze_end_time=$END_TIME" >> $GITHUB_OUTPUT
+              fi
             fi
           else
             echo "is_frozen=false" >> $GITHUB_OUTPUT
@@ -74,6 +86,9 @@ jobs:
             );
 
             if (!hasExistingComment) {
+              const freezeReason = '${{ steps.check-freeze.outputs.freeze_reason }}';
+              const freezeEndTime = '${{ steps.check-freeze.outputs.freeze_end_time }}';
+              
               await github.rest.issues.createComment({
                 issue_number: process.env.PR_NUMBER,
                 owner: context.repo.owner,
@@ -81,7 +96,7 @@ jobs:
                 body: [
                   '⚠️ **Code Freeze Active** ⚠️',
                   '',
-                  'This PR was opened during an active code freeze. To proceed:',
+                  'This PR was opened during the code freeze for ${{ steps.check-freeze.outputs.freeze_reason }}, active until ${{ steps.check-freeze.outputs.freeze_end_time }} Pacific Time. To proceed:',
                   '',
                   '- [ ] I acknowledge there is an active code freeze',
                   '- [ ] **EITHER** I have approval to override the code freeze **OR** the code freeze has ended',
