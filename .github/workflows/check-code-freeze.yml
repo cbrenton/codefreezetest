@@ -49,16 +49,14 @@ jobs:
           # Check if code_freeze.yaml exists in main and read its content
           if git show origin/main:code_freeze.yaml > /dev/null 2>&1; then
             # Run the script and capture output
-            FREEZE_OUTPUT=$(./script/is_code_freeze_inactive.rb 2>&1 || true)
-            
-            if [ $? -eq 0 ]; then
+            if ./script/is_code_freeze_inactive.rb; then
               echo "is_frozen=false" >> $GITHUB_OUTPUT
             else
               echo "is_frozen=true" >> $GITHUB_OUTPUT
               
               # Parse code_freeze.yaml to retrieve the end_time and reason variables
-              REASON=$(git show origin/main:code_freeze.yaml | grep "reason:" | awk '{print $2}')
-              END_TIME=$(git show origin/main:code_freeze.yaml | grep "end_time:" | awk '{print $2}')
+              REASON=$(cat code_freeze.yaml | grep "reason:" | awk '{print $2}')
+              END_TIME=$(cat code_freeze.yaml | grep "end_time:" | awk '{print $2}')
               
               if [ ! -z "$REASON" ]; then
                 echo "freeze_reason=$REASON" >> $GITHUB_OUTPUT
