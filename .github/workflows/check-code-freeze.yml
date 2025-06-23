@@ -55,8 +55,8 @@ jobs:
               echo "is_frozen=true" >> $GITHUB_OUTPUT
               
               # Parse code_freeze.yaml to retrieve the end_time and reason variables
-              REASON=$(cat code_freeze.yaml | grep "reason:" | awk '{print $2}')
-              END_TIME=$(cat code_freeze.yaml | grep "end_time:" | awk '{print $2}')
+              REASON=$(yq e '.[].reason' code_freeze.yaml)
+              END_TIME=$(yq e '.[].end_time' code_freeze.yaml)
               
               if [ ! -z "$REASON" ]; then
                 echo "freeze_reason=$REASON" >> $GITHUB_OUTPUT
